@@ -6,11 +6,13 @@ import { applyUpgrade, createInitialState, render, update } from '@/game/engine'
 import { getSample } from '@/game/samples'
 import { WEAPON_META } from '@/game/upgrades'
 import { shortSeed, todayKey, todaySeed } from '@/game/rng'
+import { loadMeta } from '@/game/storage'
 import {
   fetchTopDaily,
   loadHandle,
   saveHandle,
   sanitizeHandle,
+  submitDailyScore,
   type LeaderboardRow,
 } from '@/lib/daily-leaderboard'
 
@@ -572,7 +574,26 @@ function DailyLeaderboardPanel({ day }: { day: string }) {
 
   function commit() {
     const clean = saveHandle(draft)
-    if (clean) setHandleState(clean)
+    if (!clean) return
+    setHandleState(clean)
+    // If the player has a local daily record for today, retroactively post it —
+    // they may have just finished a run without a handle, so without this
+    // their score never reaches the leaderboard.
+    const record = loadMeta().dailyRecords[day]
+    if (record && record.time > 0) {
+      void submitDailyScore({
+        day,
+        handle: clean,
+        time: record.time,
+        outcome: record.outcome,
+        level: record.level,
+        kills: record.kills,
+      }).then((res) => {
+        if (res.ok) {
+          void fetchTopDaily(day, 10).then(setRows).catch(() => undefined)
+        }
+      })
+    }
   }
 
   return (
