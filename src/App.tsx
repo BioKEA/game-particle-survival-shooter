@@ -8,6 +8,7 @@ import { loadMeta, saveMeta } from '@/game/storage'
 import { audio } from '@/game/audio'
 import { todayKey, todaySeed } from '@/game/rng'
 import type { BossId, MetaState } from '@/game/types'
+import { loadHandle, submitDailyScore } from '@/lib/daily-leaderboard'
 
 type Screen = 'title' | 'game' | 'lab' | 'boss-select'
 
@@ -84,6 +85,23 @@ function App() {
       }
       return next
     })
+
+    // Submit to shared daily leaderboard (only daily mode for now; boss
+    // ranks would need a lower-is-better ordering, which the shared
+    // schema doesn't support).
+    if (runConfig.mode === 'daily' && runConfig.dateKey && result.time > 0) {
+      const handle = loadHandle()
+      if (handle) {
+        void submitDailyScore({
+          day: runConfig.dateKey,
+          handle,
+          time: result.time,
+          outcome: result.outcome,
+          level: result.level,
+          kills: result.kills,
+        })
+      }
+    }
   }
 
   const startNormalRun = () => {

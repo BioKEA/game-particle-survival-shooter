@@ -6,6 +6,13 @@ import { applyUpgrade, createInitialState, render, update } from '@/game/engine'
 import { getSample } from '@/game/samples'
 import { WEAPON_META } from '@/game/upgrades'
 import { shortSeed, todayKey, todaySeed } from '@/game/rng'
+import {
+  fetchTopDaily,
+  loadHandle,
+  saveHandle,
+  sanitizeHandle,
+  type LeaderboardRow,
+} from '@/lib/daily-leaderboard'
 
 interface TitleScreenProps {
   meta: MetaState
@@ -532,6 +539,110 @@ function DailyCard({
       >
         {record ? 'replay daily' : 'inject daily sample'}
       </button>
+      <DailyLeaderboardPanel day={key} />
+    </div>
+  )
+}
+
+function fmtClock(s: number) {
+  const m = Math.floor(s / 60)
+  const r = Math.floor(s % 60)
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+}
+
+function DailyLeaderboardPanel({ day }: { day: string }) {
+  const [handle, setHandleState] = useState<string | null>(() => loadHandle())
+  const [draft, setDraft] = useState('')
+  const [rows, setRows] = useState<LeaderboardRow[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchTopDaily(day, 10)
+      .then((r) => {
+        if (!cancelled) setRows(r)
+      })
+      .catch(() => {
+        if (!cancelled) setError("can't reach leaderboard")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [day])
+
+  function commit() {
+    const clean = saveHandle(draft)
+    if (clean) setHandleState(clean)
+  }
+
+  return (
+    <div className="mt-3 bg-bone/[0.04] border border-bone/10 rounded-[2px] p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-mono text-[9px] tracking-[0.25em] uppercase text-bone/55">
+          top today
+        </div>
+        {handle && (
+          <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-lime/80">
+            you · {handle}
+          </div>
+        )}
+      </div>
+
+      {!handle && (
+        <div className="mb-3 flex gap-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(sanitizeHandle(e.target.value))}
+            placeholder="handle"
+            maxLength={16}
+            className="flex-1 bg-ink/40 border border-bone/15 rounded-[2px] px-2 py-1.5 text-[12px] font-mono text-bone placeholder-bone/30 focus:outline-none focus:border-lime"
+          />
+          <button
+            onClick={commit}
+            disabled={!sanitizeHandle(draft)}
+            className="bg-lime text-ink font-bold px-3 py-1.5 rounded-[2px] text-[10px] tracking-[0.1em] uppercase disabled:opacity-30"
+          >
+            save
+          </button>
+        </div>
+      )}
+
+      {rows === null && !error && (
+        <div className="text-center text-[10px] font-mono text-bone/40 py-2">loading…</div>
+      )}
+      {error && (
+        <div className="text-center text-[10px] font-mono text-contam/80 py-2">{error}</div>
+      )}
+      {rows && rows.length === 0 && (
+        <div className="text-center text-[10px] font-mono text-bone/40 py-2">
+          no scores yet · be the first
+        </div>
+      )}
+      {rows && rows.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          {rows.map((r, i) => (
+            <div
+              key={r.id}
+              className={`flex items-center justify-between font-mono text-[11px] px-2 py-1 rounded-[2px] ${
+                r.isYou ? 'bg-lime/15 text-lime' : 'text-bone/75'
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-4 text-right text-bone/40">{i + 1}</span>
+                <span className="truncate">{r.handle}</span>
+                <span
+                  className={`text-[9px] uppercase ${
+                    r.outcome === 'won' ? 'text-lime/80' : 'text-bone/30'
+                  }`}
+                >
+                  {r.outcome === 'won' ? '✓' : ''}
+                </span>
+              </div>
+              <span className="tabular-nums">{fmtClock(r.time)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
