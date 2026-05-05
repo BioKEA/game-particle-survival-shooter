@@ -9,7 +9,7 @@ import { audio } from '@/game/audio'
 import { todayKey, todaySeed } from '@/game/rng'
 import type { BossId, MetaState } from '@/game/types'
 import { loadHandle, saveHandle, submitDailyScore } from '@/lib/daily-leaderboard'
-import { BiokeaLeaderboardPrompt } from '@/components/BiokeaLeaderboardPrompt'
+import { BiokeaLeaderboardPrompt, shouldShowBiokeaPrompt } from '@/components/BiokeaLeaderboardPrompt'
 
 type Screen = 'title' | 'game' | 'lab' | 'boss-select'
 
@@ -96,20 +96,10 @@ function App() {
     // ranks would need a lower-is-better ordering, which the shared
     // schema doesn't support).
     if (runConfig.mode === 'daily' && runConfig.dateKey && result.time > 0) {
-      const handle = loadHandle()
-      if (handle) {
-        void submitDailyScore({
-          day: runConfig.dateKey,
-          handle,
-          time: result.time,
-          outcome: result.outcome,
-          level: result.level,
-          kills: result.kills,
-        })
-      } else {
-        // No handle yet — stash the run and open the BioKEA prompt so the
-        // player can post + optionally subscribe in one step. The Game
-        // screen exits to title via onExit; the prompt overlays both.
+      // Stash the run so we can post it after the prompt resolves. If the
+      // prompt is suppressed (already-subscribed or session-skipped), post
+      // immediately using the existing handle (if any).
+      if (shouldShowBiokeaPrompt()) {
         setBiokeaPromptResult({
           day: runConfig.dateKey,
           time: result.time,
@@ -117,6 +107,18 @@ function App() {
           level: result.level,
           kills: result.kills,
         })
+      } else {
+        const handle = loadHandle()
+        if (handle) {
+          void submitDailyScore({
+            day: runConfig.dateKey,
+            handle,
+            time: result.time,
+            outcome: result.outcome,
+            level: result.level,
+            kills: result.kills,
+          })
+        }
       }
     }
   }
@@ -248,7 +250,22 @@ function App() {
               })
             }
           }}
-          onSkip={() => setBiokeaPromptResult(null)}
+          onSkip={() => {
+            // Skip the email step but still post if a handle is stored.
+            const r = biokeaPromptResult
+            const existing = loadHandle()
+            setBiokeaPromptResult(null)
+            if (existing && r) {
+              void submitDailyScore({
+                day: r.day,
+                handle: existing,
+                time: r.time,
+                outcome: r.outcome,
+                level: r.level,
+                kills: r.kills,
+              })
+            }
+          }}
         />
       )}
     </>

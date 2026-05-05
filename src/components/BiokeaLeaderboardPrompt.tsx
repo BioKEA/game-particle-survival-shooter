@@ -41,6 +41,49 @@ const SUBSCRIBE_URL = 'https://biokea.ai/api/subscribe'
 const HANDLE_REGEX = /^[a-zA-Z0-9_-]{1,32}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CROSS_GAME_HANDLE_KEY = 'biokea:player:handle'
+const SUBSCRIBED_FLAG_KEY = 'biokea:subscribed-v1'
+const SESSION_SKIP_KEY = 'biokea:prompt-session-skip-v1'
+
+/**
+ * Returns true if the prompt should be shown on this game-end.
+ *
+ * Use this in each arcade game's "should I open the prompt?" gate. The
+ * prompt fires for every leaderboard-eligible game-over UNLESS:
+ *   - the player has already subscribed to lab updates via this prompt
+ *     (subscribed flag in localStorage — durable across sessions), OR
+ *   - the player explicitly Skipped or committed-without-email earlier
+ *     in this session (session-skip flag in sessionStorage — clears on
+ *     tab close so they get a fresh chance next session)
+ *
+ * The handle being already-stored does NOT suppress the prompt — that
+ * was the old gate and meant returning players never saw the email
+ * funnel. Pre-populating the handle covers that case instead.
+ */
+export function shouldShowBiokeaPrompt(): boolean {
+  try {
+    if (localStorage.getItem(SUBSCRIBED_FLAG_KEY) === 'true') return false
+    if (sessionStorage.getItem(SESSION_SKIP_KEY) === 'true') return false
+  } catch {
+    /* ignore — show the prompt if storage is unavailable */
+  }
+  return true
+}
+
+function markSubscribed(): void {
+  try {
+    localStorage.setItem(SUBSCRIBED_FLAG_KEY, 'true')
+  } catch {
+    /* ignore */
+  }
+}
+
+function markSessionSkipped(): void {
+  try {
+    sessionStorage.setItem(SESSION_SKIP_KEY, 'true')
+  } catch {
+    /* ignore */
+  }
+}
 
 export interface BiokeaLeaderboardPromptResult {
   handle: string
@@ -131,6 +174,11 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
         method: 'POST',
         body,
       }).catch(() => undefined)
+      // Durable suppression — never re-prompt a subscriber.
+      markSubscribed()
+    } else {
+      // Soft suppression — this session only, fresh chance next session.
+      markSessionSkipped()
     }
 
     setSubmitting(false)
@@ -139,6 +187,13 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
       email: subscribe && email.trim() ? email.trim() : null,
       subscribedToLabUpdates: subscribe,
     })
+  }
+
+  function skip() {
+    if (props.onSkip) {
+      markSessionSkipped()
+      props.onSkip()
+    }
   }
 
   const headerEyebrow = 'BioKEA Leaderboard'
@@ -268,7 +323,7 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
             {props.onSkip && (
               <button
                 type="button"
-                onClick={props.onSkip}
+                onClick={skip}
                 disabled={submitting}
                 className="px-3 py-2 text-sm rounded-sm"
                 style={{ color: '#6b7280' }}
