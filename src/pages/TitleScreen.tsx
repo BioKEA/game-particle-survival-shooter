@@ -6,7 +6,7 @@ import { applyUpgrade, createInitialState, render, update } from '@/game/engine'
 import { getSample } from '@/game/samples'
 import { WEAPON_META } from '@/game/upgrades'
 import { shortSeed, todayKey, todaySeed } from '@/game/rng'
-import { fetchTopDaily, type LeaderboardRow } from '@/lib/daily-leaderboard'
+import { fetchTop, type LeaderboardRow, type LeaderboardWindow } from '@/lib/daily-leaderboard'
 
 interface TitleScreenProps {
   meta: MetaState
@@ -370,12 +370,15 @@ function fmtClock(s: number): string {
 }
 
 function DailyTopPanel({ day }: { day: string }) {
+  const [view, setView] = useState<LeaderboardWindow>('today')
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    fetchTopDaily(day, 5)
+    setRows(null)
+    setError(null)
+    fetchTop(view, day, 5)
       .then((r) => {
         if (!cancelled) setRows(r)
       })
@@ -385,12 +388,32 @@ function DailyTopPanel({ day }: { day: string }) {
     return () => {
       cancelled = true
     }
-  }, [day])
+  }, [day, view])
+
+  const eyebrow =
+    view === 'today' ? 'top times today' : view === 'week' ? 'last 7 days' : 'all-time'
 
   return (
     <div className="mt-3 bg-bone/[0.04] border border-bone/10 rounded-[2px] p-3">
-      <div className="font-mono text-[9px] tracking-[0.25em] uppercase text-bone/55 mb-2">
-        top times today
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="font-mono text-[9px] tracking-[0.25em] uppercase text-bone/55">
+          {eyebrow}
+        </div>
+        <div className="flex items-center gap-0.5">
+          {(['today', 'week', 'all'] as const).map((w) => (
+            <button
+              key={w}
+              onClick={() => setView(w)}
+              className={`text-[8px] uppercase tracking-[0.18em] font-mono px-1.5 py-0.5 rounded-[2px] transition-colors ${
+                view === w
+                  ? 'bg-lime/15 text-lime'
+                  : 'text-bone/40 hover:text-bone/70'
+              }`}
+            >
+              {w === 'today' ? 'today' : w === 'week' ? 'week' : 'all'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {rows === null && !error && (
@@ -401,7 +424,7 @@ function DailyTopPanel({ day }: { day: string }) {
       )}
       {rows && rows.length === 0 && (
         <div className="text-center text-[10px] font-mono text-bone/40 py-2">
-          no scores yet · be the first
+          {view === 'today' ? 'no scores yet · be the first' : 'no scores yet'}
         </div>
       )}
       {rows && rows.length > 0 && (
