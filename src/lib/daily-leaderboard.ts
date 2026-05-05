@@ -1,6 +1,12 @@
 import { GAME_ID, leaderboard } from './leaderboard-client'
 
 const HANDLE_KEY = 'pa:handle-v1'
+// Cross-game key written by the BioKEA leaderboard prompt. We fall
+// back to it on read and mirror to it on write so the per-game store
+// and the cross-game store stay in sync; that way a player who set
+// their handle in another BioKEA game (or a different browser tab)
+// won't silently drop their first particle daily score.
+const CROSS_GAME_HANDLE_KEY = 'biokea:player:handle'
 
 export interface LeaderboardRow {
   id: string
@@ -14,7 +20,10 @@ export interface LeaderboardRow {
 
 export function loadHandle(): string | null {
   try {
-    return localStorage.getItem(HANDLE_KEY)
+    return (
+      localStorage.getItem(HANDLE_KEY) ??
+      localStorage.getItem(CROSS_GAME_HANDLE_KEY)
+    )
   } catch {
     return null
   }
@@ -25,6 +34,7 @@ export function saveHandle(input: string): string {
   if (!clean) return ''
   try {
     localStorage.setItem(HANDLE_KEY, clean)
+    localStorage.setItem(CROSS_GAME_HANDLE_KEY, clean)
   } catch {
     // ignore
   }

@@ -99,29 +99,22 @@ function App() {
     // ranks would need a lower-is-better ordering, which the shared
     // schema doesn't support).
     if (runConfig.mode === 'daily' && runConfig.dateKey && result.time > 0) {
-      // Stash the run so we can post it after the prompt resolves. If the
-      // prompt is suppressed (already-subscribed or session-skipped), post
-      // immediately using the existing handle (if any).
-      if (shouldShowBiokeaPrompt()) {
-        setBiokeaPromptResult({
-          day: runConfig.dateKey,
-          time: result.time,
-          outcome: result.outcome,
-          level: result.level,
-          kills: result.kills,
-        })
+      const handle = loadHandle()
+      const stash = {
+        day: runConfig.dateKey,
+        time: result.time,
+        outcome: result.outcome,
+        level: result.level,
+        kills: result.kills,
+      }
+      if (shouldShowBiokeaPrompt() || !handle) {
+        // Open the BioKEA prompt either when it's actively wanted (first
+        // run, no subscribe yet) or as a forced handle-capture fallback
+        // when the prompt is otherwise suppressed but no handle exists —
+        // without this, the score would silently drop.
+        setBiokeaPromptResult(stash)
       } else {
-        const handle = loadHandle()
-        if (handle) {
-          void submitDailyScore({
-            day: runConfig.dateKey,
-            handle,
-            time: result.time,
-            outcome: result.outcome,
-            level: result.level,
-            kills: result.kills,
-          })
-        }
+        void submitDailyScore({ ...stash, handle })
       }
     }
   }

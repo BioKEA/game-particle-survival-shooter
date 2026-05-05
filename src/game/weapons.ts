@@ -78,7 +78,11 @@ export function tickWeapons(state: RunState, dt: number) {
 function cooldownLevelMod(w: WeaponState): number {
   // Each level shaves a bit of cooldown
   const mods: Record<string, number[]> = {
-    pcr: [1.0, 0.92, 0.85, 0.78, 0.7, 0.62, 0.55],
+    // PCR was [1.0, 0.92, 0.85, 0.78, 0.7, 0.62, 0.55] — combined with
+    // amp5 (×0.85) and Catalyst passive (×1−0.1·level), late-game PCR
+    // could fire ~6×/sec which made the screen self-clearing. Easing
+    // the curve to keep PCR a viable but not dominant build.
+    pcr: [1.0, 0.96, 0.92, 0.88, 0.84, 0.78, 0.72],
     crispr: [1.0, 0.92, 0.84, 0.76, 0.68, 0.6, 0.55],
     electrophoresis: [1.0, 0.92, 0.85, 0.78, 0.7, 0.65],
     massSpec: [1.0, 0.95, 0.88, 0.8, 0.72, 0.65],
@@ -139,10 +143,16 @@ function fireWeapon(state: RunState, w: WeaponState, dmgMult: number, sizeMult: 
 }
 
 function firePcr(state: RunState, w: WeaponState, dmgMult: number, sizeMult: number) {
-  const target = nearestEnemy(state, state.player.pos, 560)
+  // Targeting range was 560; tightening so PCR doesn't snipe across
+  // the whole field while you stand still.
+  const target = nearestEnemy(state, state.player.pos, 500)
   if (!target) return
-  const baseDmg = 10 * (1 + (w.level - 1) * 0.4) * dmgMult
-  const count = 1 + Math.floor((w.level - 1) / 2) // lvl 1:1, lvl 3:2, lvl 5:3
+  // Damage scaling was +40%/lvl (max ×3); now +25%/lvl (max ×2.25).
+  const baseDmg = 10 * (1 + (w.level - 1) * 0.25) * dmgMult
+  // Count was lvl 1:1 / lvl 3:2 / lvl 5:3 — too quickly multi-shot.
+  // Now lvl 1–3:1 / lvl 4–5:2 / lvl 6:3. Pierce was lvl 2:1 / lvl 4:2;
+  // now lvl 4:1 / lvl 6:2. PCR remains a viable build, no longer auto-clears.
+  const count = w.level >= 6 ? 3 : w.level >= 4 ? 2 : 1
   const baseAng = Math.atan2(target.pos.y - state.player.pos.y, target.pos.x - state.player.pos.x)
   const spread = (count - 1) * 0.18
   for (let i = 0; i < count; i++) {
@@ -155,7 +165,7 @@ function firePcr(state: RunState, w: WeaponState, dmgMult: number, sizeMult: num
         damage: baseDmg,
         radius: 6 * sizeMult,
         ttl: 1.4,
-        pierce: w.level >= 4 ? 2 : w.level >= 2 ? 1 : 0,
+        pierce: w.level >= 6 ? 2 : w.level >= 4 ? 1 : 0,
         kind: 'pcr',
       }),
     )
