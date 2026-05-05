@@ -50,11 +50,29 @@ export function createInitialState(
   meta: MetaState,
   opts?: { mode?: 'normal' | 'daily' | 'boss' | 'endless'; bossId?: BossId },
 ): RunState {
-  const sample = getSample(meta.activeSample)
-  const baseHp = 100 + meta.permUpgrades.maxHp * 10 + sample.hpMod
-  const baseDmg = (1 + meta.permUpgrades.damage * 0.05) * sample.dmgMult
-  const baseSpeed = 240 * (1 + meta.permUpgrades.speed * 0.04) * sample.speedMult
-  const basePickup = 130 * (1 + meta.permUpgrades.pickup * 0.15) * sample.pickupMult
+  // Daily / high-score mode is a clean baseline — ignore Lab-purchased
+  // upgrades, unlocked samples, and unlocked weapons so every player
+  // runs today's seed under the same starting conditions. Other modes
+  // (normal / boss / endless) retain the full meta progression for
+  // long-form play. Saved-progress fields (dailyRecords, achievements,
+  // bestTime, etc.) pass through unchanged so achievement reveals and
+  // best-time tracking still work regardless of mode.
+  const effectiveMeta: MetaState =
+    opts?.mode === 'daily'
+      ? {
+          ...meta,
+          activeSample: 'wildType',
+          unlockedSamples: ['wildType'],
+          unlockedWeapons: ['pcr'],
+          permUpgrades: { maxHp: 0, damage: 0, speed: 0, pickup: 0 },
+        }
+      : meta
+
+  const sample = getSample(effectiveMeta.activeSample)
+  const baseHp = 100 + effectiveMeta.permUpgrades.maxHp * 10 + sample.hpMod
+  const baseDmg = (1 + effectiveMeta.permUpgrades.damage * 0.05) * sample.dmgMult
+  const baseSpeed = 240 * (1 + effectiveMeta.permUpgrades.speed * 0.04) * sample.speedMult
+  const basePickup = 130 * (1 + effectiveMeta.permUpgrades.pickup * 0.15) * sample.pickupMult
 
   const state: RunState = {
     status: 'running',
@@ -105,7 +123,7 @@ export function createInitialState(
     isEndless: opts?.mode === 'endless',
   }
   STATE_BASE.set(state, { hp: baseHp, dmg: baseDmg, speed: baseSpeed, pickup: basePickup })
-  STATE_META.set(state, meta)
+  STATE_META.set(state, effectiveMeta)
 
   if (opts?.mode === 'boss' && opts.bossId) {
     setupBossArena(state, opts.bossId)
