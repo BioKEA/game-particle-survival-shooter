@@ -199,12 +199,13 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
   const isGameEnd = props.trigger === 'game-end'
   const headerEyebrow = isGameEnd ? 'BioKEA Daily Leaderboard' : 'BioKEA · Welcome'
   const headerTitle = isGameEnd ? 'Post your score' : `Welcome — ${props.gameTitle}`
-  // Only the four arcade-style game-end games count toward the daily
-  // leaderboard / BKP. Long-form games trigger this prompt to capture
-  // a handle + offer the lab-updates email opt-in, with no BKP claim.
+  // The four arcade-style game-end games (codon, pipette, plasmid,
+  // particle) post to a per-game daily leaderboard. Long-form games
+  // (cal-field-lab, wildcal) trigger this prompt at game-start to
+  // capture a handle + offer the lab-updates email opt-in.
   const lede = isGameEnd
-    ? 'Pick a handle to post this run on the BioKEA Daily Leaderboard. Earns BKP across all four daily-mode games.'
-    : 'Pick a handle for your save. Long-form games like this one don\'t post to the daily leaderboard — but you can still subscribe to lab updates below.'
+    ? "Pick a handle to post this run on the daily leaderboard."
+    : "Pick a handle for your save. Long-form games like this one don't post to the daily leaderboard — but you can still subscribe to lab updates below."
   const submitLabel = isGameEnd ? 'Post score →' : 'Start playing →'
 
   return (
