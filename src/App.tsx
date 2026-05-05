@@ -35,11 +35,14 @@ function App() {
   }, [meta])
 
   useEffect(() => {
+    // Default to muted on first visit. Once the player toggles a
+    // preference, "0"/"1" is stored and respected.
     try {
-      const m = localStorage.getItem('pa:muted') === '1'
+      const stored = localStorage.getItem('pa:muted')
+      const m = stored === '0' ? false : true
       audio.setMuted(m)
     } catch {
-      /* ignore */
+      audio.setMuted(true)
     }
   }, [])
 

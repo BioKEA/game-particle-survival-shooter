@@ -18,7 +18,7 @@ class AudioManager {
   private musicNodes: AudioNode[] = []
   private lastPlayed: Partial<Record<SoundId, number>> = {}
   private musicStarted = false
-  private muted = false
+  private muted = true
   private suppressed = false
 
   init() {
@@ -31,7 +31,7 @@ class AudioManager {
       return
     }
     this.master = this.ctx.createGain()
-    this.master.gain.value = 0.6
+    this.master.gain.value = this.muted ? 0 : 0.6
     this.master.connect(this.ctx.destination)
 
     this.sfxGain = this.ctx.createGain()
