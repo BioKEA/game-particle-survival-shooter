@@ -8,7 +8,8 @@ import { loadMeta, saveMeta } from '@/game/storage'
 import { audio } from '@/game/audio'
 import { todayKey, todaySeed } from '@/game/rng'
 import type { BossId, MetaState } from '@/game/types'
-import { loadHandle, submitDailyScore } from '@/lib/daily-leaderboard'
+import { loadHandle, saveHandle, submitDailyScore } from '@/lib/daily-leaderboard'
+import { BiokeaLeaderboardPrompt } from '@/components/BiokeaLeaderboardPrompt'
 
 type Screen = 'title' | 'game' | 'lab' | 'boss-select'
 
@@ -23,6 +24,11 @@ function App() {
   const [screen, setScreen] = useState<Screen>('title')
   const [meta, setMeta] = useState<MetaState>(() => loadMeta())
   const [runConfig, setRunConfig] = useState<RunConfig>({ mode: 'normal' })
+  // BiokeaLeaderboardPrompt — shows after a daily run if no handle exists.
+  const [biokeaPromptResult, setBiokeaPromptResult] = useState<
+    | { day: string; time: number; outcome: 'won' | 'lost' | 'quit'; level: number; kills: number }
+    | null
+  >(null)
 
   useEffect(() => {
     saveMeta(meta)
@@ -100,8 +106,25 @@ function App() {
           level: result.level,
           kills: result.kills,
         })
+      } else {
+        // No handle yet — stash the run and open the BioKEA prompt so the
+        // player can post + optionally subscribe in one step. The Game
+        // screen exits to title via onExit; the prompt overlays both.
+        setBiokeaPromptResult({
+          day: runConfig.dateKey,
+          time: result.time,
+          outcome: result.outcome,
+          level: result.level,
+          kills: result.kills,
+        })
       }
     }
+  }
+
+  const fmtTime = (s: number): string => {
+    const m = Math.floor(s / 60)
+    const r = Math.floor(s % 60)
+    return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
   }
 
   const startNormalRun = () => {
@@ -197,6 +220,35 @@ function App() {
               setTimeout(() => startNormalRun(), 0)
             }
           }}
+        />
+      )}
+      {biokeaPromptResult && (
+        <BiokeaLeaderboardPrompt
+          trigger="game-end"
+          gameSlug="particle-survival-shooter"
+          gameTitle="Particle Accelerator"
+          score={{
+            value: fmtTime(biokeaPromptResult.time),
+            label: 'Time survived',
+            unit: `· level ${biokeaPromptResult.level} · ${biokeaPromptResult.kills} kills`,
+          }}
+          defaultHandle={loadHandle() ?? ''}
+          onSubmit={(result) => {
+            saveHandle(result.handle)
+            const r = biokeaPromptResult
+            setBiokeaPromptResult(null)
+            if (r) {
+              void submitDailyScore({
+                day: r.day,
+                handle: result.handle,
+                time: r.time,
+                outcome: r.outcome,
+                level: r.level,
+                kills: r.kills,
+              })
+            }
+          }}
+          onSkip={() => setBiokeaPromptResult(null)}
         />
       )}
     </>
