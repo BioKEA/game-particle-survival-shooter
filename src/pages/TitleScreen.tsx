@@ -6,6 +6,7 @@ import { applyUpgrade, createInitialState, render, update } from '@/game/engine'
 import { getSample } from '@/game/samples'
 import { WEAPON_META } from '@/game/upgrades'
 import { shortSeed, todayKey, todaySeed } from '@/game/rng'
+import { fetchTopDaily, type LeaderboardRow } from '@/lib/daily-leaderboard'
 
 interface TitleScreenProps {
   meta: MetaState
@@ -270,7 +271,7 @@ export function TitleScreen({
               )}
             </div>
             <div className="mt-3 font-mono text-[10px] tracking-[0.2em] uppercase text-ink/45">
-              [wasd] move · auto-fires · daily run posts to the BioKEA leaderboard
+              [wasd] move · auto-fires · daily run posts to the leaderboard →
             </div>
           </div>
 
@@ -289,8 +290,10 @@ export function TitleScreen({
               </div>
             </div>
 
-            {/* Daily summary — the embedded leaderboard panel + handle entry
-                were dropped in favor of the central biokea.ai leaderboard. */}
+            {/* Today's leaderboard — particle-only top times for the current
+                daily seed. The previous "View leaderboard ↗" link to the
+                cross-game biokea.ai page was dropped in favor of in-game
+                visibility into this game's own standings. */}
             <div
               className="rounded-[4px] p-4"
               style={{
@@ -330,13 +333,7 @@ export function TitleScreen({
                   </div>
                 </div>
               </div>
-              <a
-                href="https://biokea.ai/mission/games/leaderboard"
-                target="_top"
-                className="mt-3 block text-center px-4 py-2.5 bg-lime text-ink font-bold text-[12px] tracking-[0.05em] uppercase rounded-[2px] hover:brightness-110 transition-all"
-              >
-                View leaderboard ↗
-              </a>
+              <DailyTopPanel day={dayKey} />
             </div>
           </div>
         </div>
@@ -362,6 +359,76 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
       <div className={`mt-1 text-xl md:text-[22px] font-bold ${highlight ? 'text-cobalt-bright' : 'text-ink'}`}>
         {value}
       </div>
+    </div>
+  )
+}
+
+function fmtClock(s: number): string {
+  const m = Math.floor(s / 60)
+  const r = Math.floor(s % 60)
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+}
+
+function DailyTopPanel({ day }: { day: string }) {
+  const [rows, setRows] = useState<LeaderboardRow[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchTopDaily(day, 5)
+      .then((r) => {
+        if (!cancelled) setRows(r)
+      })
+      .catch(() => {
+        if (!cancelled) setError("can't reach leaderboard")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [day])
+
+  return (
+    <div className="mt-3 bg-bone/[0.04] border border-bone/10 rounded-[2px] p-3">
+      <div className="font-mono text-[9px] tracking-[0.25em] uppercase text-bone/55 mb-2">
+        top times today
+      </div>
+
+      {rows === null && !error && (
+        <div className="text-center text-[10px] font-mono text-bone/40 py-2">loading…</div>
+      )}
+      {error && (
+        <div className="text-center text-[10px] font-mono text-contam/80 py-2">{error}</div>
+      )}
+      {rows && rows.length === 0 && (
+        <div className="text-center text-[10px] font-mono text-bone/40 py-2">
+          no scores yet · be the first
+        </div>
+      )}
+      {rows && rows.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          {rows.map((r, i) => (
+            <div
+              key={r.id}
+              className={`flex items-center justify-between font-mono text-[11px] px-2 py-1 rounded-[2px] ${
+                r.isYou ? 'bg-lime/15 text-lime' : 'text-bone/75'
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-4 text-right text-bone/40">{i + 1}</span>
+                <span className="truncate">{r.handle}</span>
+                <span
+                  className={`text-[9px] uppercase ${
+                    r.outcome === 'won' ? 'text-lime/80' : 'text-bone/30'
+                  }`}
+                >
+                  {r.outcome === 'won' ? '✓' : ''}
+                </span>
+              </div>
+              <span className="tabular-nums">{fmtClock(r.time)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
