@@ -221,6 +221,20 @@ export function update(state: RunState, dtRaw: number) {
     state.status = 'lost'
     audio.play('lose')
   }
+  // Hard 10-minute safety cap on non-endless modes. Prion boss spawns at
+  // BOSS_TIME=470s and if the player can't kill it (or rolled a build
+  // resilient enough to outlast it), the run would never terminate and
+  // onRunComplete would never fire — score never posts. Force a win so
+  // the run ends and the score lands on the daily leaderboard.
+  if (
+    state.time >= 600 &&
+    state.status === 'running' &&
+    !state.isEndless &&
+    !state.isBossArena
+  ) {
+    state.status = 'won'
+    audio.play('win')
+  }
 }
 
 function movePlayer(state: RunState, dt: number) {

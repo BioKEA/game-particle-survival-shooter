@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Toaster, toast } from 'sonner'
 import { TitleScreen } from '@/pages/TitleScreen'
 import { Game, type RunResult } from '@/pages/Game'
 import { Lab } from '@/pages/Lab'
@@ -10,6 +11,28 @@ import { todayKey, todaySeed } from '@/game/rng'
 import type { BossId, MetaState } from '@/game/types'
 import { loadHandle, saveHandle, submitDailyScore } from '@/lib/daily-leaderboard'
 import { BiokeaLeaderboardPrompt, shouldShowBiokeaPrompt } from '@/components/BiokeaLeaderboardPrompt'
+
+// Wraps submitDailyScore with toast feedback so the player can see
+// whether their score actually landed. Without this, network or RLS
+// failures look identical to silence.
+async function submitWithToast(args: Parameters<typeof submitDailyScore>[0]) {
+  const id = toast.loading('Posting score to BioKEA leaderboard…')
+  try {
+    const res = await submitDailyScore(args)
+    if (res.ok) {
+      toast.success('Posted to leaderboard', {
+        id,
+        description: 'View it at biokea.ai/mission/games/leaderboard',
+      })
+    } else {
+      toast.error(`Couldn't post score: ${res.error}`, { id })
+    }
+  } catch (err) {
+    toast.error(`Couldn't post score: ${err instanceof Error ? err.message : 'unknown error'}`, {
+      id,
+    })
+  }
+}
 
 type Screen = 'title' | 'game' | 'lab' | 'boss-select'
 
@@ -114,7 +137,7 @@ function App() {
         // without this, the score would silently drop.
         setBiokeaPromptResult(stash)
       } else {
-        void submitDailyScore({ ...stash, handle })
+        void submitWithToast({ ...stash, handle })
       }
     }
   }
@@ -220,6 +243,17 @@ function App() {
           }}
         />
       )}
+      <Toaster
+        theme="dark"
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: 'rgba(10, 26, 47, 0.95)',
+            border: '1px solid rgba(74, 130, 255, 0.35)',
+            color: '#eef2f6',
+          },
+        }}
+      />
       {biokeaPromptResult && (
         <BiokeaLeaderboardPrompt
           trigger="game-end"
@@ -236,7 +270,7 @@ function App() {
             const r = biokeaPromptResult
             setBiokeaPromptResult(null)
             if (r) {
-              void submitDailyScore({
+              void submitWithToast({
                 day: r.day,
                 handle: result.handle,
                 time: r.time,
@@ -252,7 +286,7 @@ function App() {
             const existing = loadHandle()
             setBiokeaPromptResult(null)
             if (existing && r) {
-              void submitDailyScore({
+              void submitWithToast({
                 day: r.day,
                 handle: existing,
                 time: r.time,
