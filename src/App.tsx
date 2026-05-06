@@ -10,6 +10,7 @@ import { audio } from '@/game/audio'
 import { todayKey, todaySeed } from '@/game/rng'
 import type { BossId, MetaState } from '@/game/types'
 import { loadHandle, saveHandle, submitDailyScore } from '@/lib/daily-leaderboard'
+import { tryClaimGoldenSample } from '@/lib/golden-sample'
 import { BiokeaLeaderboardPrompt, shouldShowBiokeaPrompt } from '@/components/BiokeaLeaderboardPrompt'
 
 // Wraps submitDailyScore with toast feedback so the player can see
@@ -24,6 +25,11 @@ async function submitWithToast(args: Parameters<typeof submitDailyScore>[0]) {
         id,
         description: 'View it at biokea.ai/mission/games/leaderboard',
       })
+      // Golden Sample 26: every successful submit is a candidate
+      // — server checks score >= 360 (6 minutes survived). No-op if
+      // ticket is already held or the threshold isn't met.
+      // I won't tell. That would be cheating.
+      void tryClaimGoldenSample(args.handle)
     } else {
       toast.error(`Couldn't post score: ${res.error}`, { id })
     }
