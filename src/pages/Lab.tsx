@@ -124,9 +124,9 @@ export function Lab({ meta, onUpdateMeta, onBack }: LabProps) {
               audio.play('click')
               onBack()
             }}
-            className="font-mono text-[10px] tracking-[0.2em] uppercase text-cobalt-bright hover:text-bone transition-colors"
+            className="px-3 py-1.5 rounded-[3px] bg-cobalt-bright/15 hover:bg-cobalt-bright/30 border border-cobalt-bright/40 font-mono text-[11px] tracking-[0.18em] uppercase text-cobalt-bright transition-colors"
           >
-            ← back
+            ← Back to title
           </button>
           <div className="h-4 w-px bg-bone/20" />
           <div className="font-bold tracking-tight text-base md:text-lg">Lab Inventory</div>
@@ -428,7 +428,12 @@ export function Lab({ meta, onUpdateMeta, onBack }: LabProps) {
         </section>
       </main>
 
-      <footer className="px-6 md:px-10 py-5 border-t border-ink/10 max-w-[1400px] mx-auto w-full flex items-center justify-between">
+      {/* Footer's right-edge "Back to title" button used to collide
+          with the website-injected Lab Updates pill (position:fixed
+          bottom-right) at narrow viewports. Pad bottom so the button
+          clears the pill, and constrain the button to the left so the
+          fixed pill never overlaps it. */}
+      <footer className="px-6 md:px-10 py-5 pb-24 md:pb-12 border-t border-ink/10 max-w-[1400px] mx-auto w-full flex flex-col md:flex-row items-start md:items-center md:justify-between gap-3">
         <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/45">
           credits earned per run · time + kills + boss bonus
         </div>
@@ -437,9 +442,9 @@ export function Lab({ meta, onUpdateMeta, onBack }: LabProps) {
             audio.play('click')
             onBack()
           }}
-          className="px-6 py-3 bg-ink text-bone font-bold text-[13px] rounded-[3px] hover:bg-cobalt transition-colors"
+          className="px-6 py-3 bg-ink text-bone font-bold text-[13px] rounded-[3px] hover:bg-cobalt transition-colors self-start md:self-auto"
         >
-          Back to title →
+          ← Back to title
         </button>
       </footer>
     </div>
