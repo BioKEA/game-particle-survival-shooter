@@ -6,7 +6,7 @@ import { applyUpgrade, createInitialState, render, update } from '@/game/engine'
 import { getSample } from '@/game/samples'
 import { WEAPON_META } from '@/game/upgrades'
 import { shortSeed, todayKey, todaySeed } from '@/game/rng'
-import { fetchTop, type LeaderboardRow, type LeaderboardWindow } from '@/lib/daily-leaderboard'
+import { fetchTop, loadHandle, saveHandle, type LeaderboardRow, type LeaderboardWindow } from '@/lib/daily-leaderboard'
 
 interface TitleScreenProps {
   meta: MetaState
@@ -373,6 +373,20 @@ function DailyTopPanel({ day }: { day: string }) {
   const [view, setView] = useState<LeaderboardWindow>('today')
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [handle, setHandle] = useState<string>(() => loadHandle() ?? '')
+  const [editingHandle, setEditingHandle] = useState(false)
+  const [handleDraft, setHandleDraft] = useState('')
+  const handleInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editingHandle) handleInputRef.current?.focus()
+  }, [editingHandle])
+
+  function commitHandle() {
+    const saved = saveHandle(handleDraft)
+    if (saved) setHandle(saved)
+    setEditingHandle(false)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -452,6 +466,42 @@ function DailyTopPanel({ day }: { day: string }) {
           ))}
         </div>
       )}
+
+      {/* Handle editor */}
+      <div className="mt-3 pt-3 border-t border-bone/10 flex items-center justify-between gap-2 font-mono">
+        <span className="text-[9px] tracking-[0.2em] uppercase text-bone/40">your handle</span>
+        {editingHandle ? (
+          <div className="flex items-center gap-1">
+            <input
+              ref={handleInputRef}
+              value={handleDraft}
+              onChange={(e) => setHandleDraft(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitHandle() }
+                if (e.key === 'Escape') { e.preventDefault(); setEditingHandle(false) }
+                e.stopPropagation()
+              }}
+              placeholder="handle"
+              maxLength={16}
+              className="w-28 bg-bone/10 border border-bone/20 rounded-[2px] px-2 py-0.5 text-[11px] text-bone font-mono focus:outline-none focus:border-lime/60"
+            />
+            <button
+              onClick={commitHandle}
+              className="text-[9px] uppercase tracking-[0.15em] text-lime hover:text-lime/70 px-1"
+            >
+              save
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setHandleDraft(handle); setEditingHandle(true) }}
+            className="flex items-center gap-1.5 text-[11px] text-bone/70 hover:text-bone transition-colors group"
+          >
+            <span>{handle || <span className="text-bone/30 italic">not set</span>}</span>
+            <span className="text-bone/25 text-[9px] group-hover:text-bone/50 transition-colors">✎</span>
+          </button>
+        )}
+      </div>
     </div>
   )
 }

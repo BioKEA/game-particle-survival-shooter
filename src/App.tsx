@@ -76,7 +76,7 @@ function App() {
         credits: m.credits + result.credits,
         totalRuns: m.totalRuns + 1,
         bestTime:
-          runConfig.mode === 'normal' && result.outcome === 'won'
+          runConfig.mode === 'normal' || runConfig.mode === 'daily'
             ? Math.max(m.bestTime, result.time)
             : m.bestTime,
         wins: m.wins + (runConfig.mode === 'normal' && result.outcome === 'won' ? 1 : 0),
