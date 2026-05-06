@@ -25,11 +25,11 @@ async function submitWithToast(args: Parameters<typeof submitDailyScore>[0]) {
         id,
         description: 'View it at biokea.ai/mission/games/leaderboard',
       })
-      // Golden Sample 26: every successful submit is a candidate
-      // — server checks score >= 360 (6 minutes survived). No-op if
-      // ticket is already held or the threshold isn't met.
+      // Golden Sample 26: pass this run's survived seconds so the
+      // claim only fires when THIS run cleared the threshold (480s
+      // — full 8-minute survival). Server still cross-checks.
       // I won't tell. That would be cheating.
-      void tryClaimGoldenSample(args.handle)
+      void tryClaimGoldenSample({ handle: args.handle, time: args.time })
     } else {
       toast.error(`Couldn't post score: ${res.error}`, { id })
     }

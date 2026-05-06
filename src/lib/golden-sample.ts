@@ -67,9 +67,17 @@ interface GoldenFoundDetail {
   sentence: string
 }
 
-export async function tryClaimGoldenSample(handle?: string): Promise<void> {
+// Survive-the-whole-game threshold (RUN_DURATION = 480s in waves.ts).
+// Gate the claim attempt so a long-ago full run doesn't fire the
+// reveal on a short subsequent run.
+const SLOT_THRESHOLD_TIME = 480
+
+export async function tryClaimGoldenSample(
+  args: { handle?: string; time?: number } = {},
+): Promise<void> {
   if (alreadyHeld()) return
-  const h = handle ?? readHandle()
+  if (typeof args.time === 'number' && args.time < SLOT_THRESHOLD_TIME) return
+  const h = args.handle ?? readHandle()
   if (!h) return
   let res: Response
   try {
