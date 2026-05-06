@@ -140,16 +140,18 @@ export async function fetchTop(
   limit = 10,
 ): Promise<LeaderboardRow[]> {
   const me = loadHandle()
-  if (window === 'today') {
-    const entries = await leaderboard.getDailyLeaderboard(GAME_ID, today, limit)
-    return entries.map((e) => toRow(e, me))
-  }
-  const opts: { gameId: string; mode: string; limit: number; seedFrom?: string; seedTo?: string } = {
+  // Pull a generous slice (limit * 8) so dedupe leaves enough rows for
+  // a top N even when a few handles dominate. Today dedupes too because
+  // submitDailyScore here doesn't gate on personal best — every run-end
+  // posts a fresh row, so one player can occupy several Today rows.
+  const opts: { gameId: string; mode: string; limit: number; seed?: string; seedFrom?: string; seedTo?: string } = {
     gameId: GAME_ID,
     mode: 'daily',
     limit: limit * 8,
   }
-  if (window === 'week') {
+  if (window === 'today') {
+    opts.seed = today
+  } else if (window === 'week') {
     opts.seedFrom = weekStart(today)
     opts.seedTo = today
   }

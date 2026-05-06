@@ -31,12 +31,12 @@ export function hashString(s: string): number {
   return h >>> 0
 }
 
+// UTC so every game in the BioKEA suite agrees on which day "today"
+// is. Codon Collider seeds daily mode in UTC and the central
+// /mission/games/leaderboard page reads UTC; using local time here
+// produced silent score misses for users west of UTC.
 export function todayKey(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  return new Date().toISOString().slice(0, 10)
 }
 
 export function todaySeed(): number {
