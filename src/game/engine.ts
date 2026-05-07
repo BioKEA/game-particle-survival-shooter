@@ -245,6 +245,15 @@ export function update(state: RunState, dtRaw: number) {
   }
 }
 
+// Arena bounds. Player's complaint was "is it infinite? make it a
+// square" — the world is camera-follow and effectively unbounded.
+// Make it a real fenced arena: ~2× viewport in each dimension so the
+// player has room to maneuver but can't endlessly kite. Enemies still
+// chase the player (their AI is contact-seek), so they stay inside
+// naturally without any spawn-side change.
+export const ARENA_HALF_W = 1400
+export const ARENA_HALF_H = 900
+
 function movePlayer(state: RunState, dt: number) {
   const i = state.input
   let dx: number
@@ -270,6 +279,11 @@ function movePlayer(state: RunState, dt: number) {
   state.player.vel.y = dy * state.player.speed
   state.player.pos.x += state.player.vel.x * dt
   state.player.pos.y += state.player.vel.y * dt
+  // Clamp to arena
+  if (state.player.pos.x < -ARENA_HALF_W) state.player.pos.x = -ARENA_HALF_W
+  else if (state.player.pos.x > ARENA_HALF_W) state.player.pos.x = ARENA_HALF_W
+  if (state.player.pos.y < -ARENA_HALF_H) state.player.pos.y = -ARENA_HALF_H
+  else if (state.player.pos.y > ARENA_HALF_H) state.player.pos.y = ARENA_HALF_H
 }
 
 function moveEnemies(state: RunState, dt: number) {
@@ -1182,6 +1196,7 @@ export function render(ctx: CanvasRenderingContext2D, state: RunState, w: number
   ctx.translate(-camX, -camY)
 
   drawGrid(ctx, camX, camY, w, h)
+  drawArenaBounds(ctx)
   drawArenaGlow(ctx, state.player.pos)
 
   // Hazards under everything else
@@ -1329,6 +1344,33 @@ function drawGrid(ctx: CanvasRenderingContext2D, camX: number, camY: number, w: 
     ctx.lineTo(camX + w, y)
   }
   ctx.stroke()
+  ctx.restore()
+}
+
+function drawArenaBounds(ctx: CanvasRenderingContext2D) {
+  // Subtle cyan boundary rectangle so the player can read where the
+  // arena ends. Slightly inset corners are emphasized for legibility.
+  ctx.save()
+  ctx.strokeStyle = 'rgba(74,130,255,0.32)'
+  ctx.lineWidth = 2
+  ctx.setLineDash([12, 10])
+  ctx.strokeRect(-ARENA_HALF_W, -ARENA_HALF_H, ARENA_HALF_W * 2, ARENA_HALF_H * 2)
+  ctx.setLineDash([])
+  // Brighter corner brackets
+  ctx.strokeStyle = 'rgba(74,130,255,0.7)'
+  ctx.lineWidth = 3
+  const c = 60
+  const drawCorner = (x: number, y: number, sx: number, sy: number) => {
+    ctx.beginPath()
+    ctx.moveTo(x, y + sy * c)
+    ctx.lineTo(x, y)
+    ctx.lineTo(x + sx * c, y)
+    ctx.stroke()
+  }
+  drawCorner(-ARENA_HALF_W, -ARENA_HALF_H, 1, 1)
+  drawCorner(ARENA_HALF_W, -ARENA_HALF_H, -1, 1)
+  drawCorner(-ARENA_HALF_W, ARENA_HALF_H, 1, -1)
+  drawCorner(ARENA_HALF_W, ARENA_HALF_H, -1, -1)
   ctx.restore()
 }
 

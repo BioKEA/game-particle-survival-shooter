@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { BossId, Lineage, MetaState, RunState, UpgradeId, WeaponId } from '@/game/types'
 import {
   applyUpgrade,
+  ARENA_HALF_H,
+  ARENA_HALF_W,
   createInitialState,
   getLineageScores,
   render,
@@ -726,36 +728,36 @@ function AchievementToasts({
 }
 
 function Minimap({ state }: { state: RunState }) {
-  // Radar-style minimap. The arena is effectively infinite (camera follows
-  // the player), so we show a fixed window centered on the player. Player
-  // feedback: "Would be nice to have some idea of the map space, where
-  // the particles are and where you are." Inline-rendered React elements
-  // because the parent only re-renders ~20fps; we typically have <120
-  // enemies on screen which is fine for reconciliation.
-  const SIZE = 124
+  // Whole-arena minimap. Rectangular to match the arena's aspect ratio
+  // (2800×1800 in game-space). Player position is shown absolutely
+  // within the arena, not relative to itself, so the player can see
+  // where they are vs. where the bounds are. Player feedback: "have
+  // some idea of the map space, where the particles are and where
+  // you are." Inline-rendered React; ≤120 enemies is fine for the
+  // 20fps tick.
+  const ARENA_W = ARENA_HALF_W * 2
+  const ARENA_H = ARENA_HALF_H * 2
+  const MAP_W = 132
   const PAD = 10
-  const inner = SIZE - PAD * 2
-  const half = inner / 2
-  const RADAR_RADIUS = 700 // game-space px window
-  const px = state.player.pos.x
-  const py = state.player.pos.y
+  const innerW = MAP_W - PAD * 2
+  const innerH = Math.round(innerW * (ARENA_H / ARENA_W))
+  const MAP_H = innerH + PAD * 2
+  // World→radar transform: world (-half..+half) → screen (0..inner)
+  const wx2sx = (wx: number) => ((wx + ARENA_HALF_W) / ARENA_W) * innerW
+  const wy2sy = (wy: number) => ((wy + ARENA_HALF_H) / ARENA_H) * innerH
   return (
     <div
       className="pointer-events-auto bg-ink/85 backdrop-blur-md rounded-[4px] border border-cobalt/25"
-      style={{ width: SIZE, height: SIZE, padding: PAD }}
+      style={{ width: MAP_W, height: MAP_H, padding: PAD }}
     >
-      <div className="relative" style={{ width: inner, height: inner }}>
-        <div className="absolute inset-0 rounded-full border border-cobalt/20" />
-        <div className="absolute inset-[25%] rounded-full border border-cobalt/12" />
+      <div className="relative" style={{ width: innerW, height: innerH }}>
+        {/* Arena rectangle */}
+        <div className="absolute inset-0 rounded-[2px] border border-cobalt/40" />
+        {/* Crosshairs */}
         <div className="absolute top-0 bottom-0 left-1/2 w-px bg-cobalt/15" />
         <div className="absolute left-0 right-0 top-1/2 h-px bg-cobalt/15" />
         {/* Enemies */}
         {state.enemies.map((e) => {
-          const dx = e.pos.x - px
-          const dy = e.pos.y - py
-          if (Math.abs(dx) > RADAR_RADIUS || Math.abs(dy) > RADAR_RADIUS) return null
-          const sx = half + (dx / RADAR_RADIUS) * half
-          const sy = half + (dy / RADAR_RADIUS) * half
           const isBoss = e.isBoss
           const sz = isBoss ? 5 : 2
           return (
@@ -763,8 +765,8 @@ function Minimap({ state }: { state: RunState }) {
               key={e.id}
               className="absolute rounded-full"
               style={{
-                left: sx,
-                top: sy,
+                left: wx2sx(e.pos.x),
+                top: wy2sy(e.pos.y),
                 width: sz,
                 height: sz,
                 background: isBoss ? '#fbbf24' : '#ff5577',
@@ -774,23 +776,17 @@ function Minimap({ state }: { state: RunState }) {
             />
           )
         })}
-        {/* Pickups (XP) — small subtle dots so the radar shows where
-            kills happened */}
+        {/* Pickups */}
         {state.pickups.map((p, i) => {
           if (p.kind !== 'xp' && p.kind !== 'treasure') return null
-          const dx = p.pos.x - px
-          const dy = p.pos.y - py
-          if (Math.abs(dx) > RADAR_RADIUS || Math.abs(dy) > RADAR_RADIUS) return null
-          const sx = half + (dx / RADAR_RADIUS) * half
-          const sy = half + (dy / RADAR_RADIUS) * half
           const color = p.kind === 'treasure' ? '#fde68a' : '#7ab0ff'
           return (
             <div
               key={`p${i}`}
               className="absolute rounded-full"
               style={{
-                left: sx,
-                top: sy,
+                left: wx2sx(p.pos.x),
+                top: wy2sy(p.pos.y),
                 width: 1.5,
                 height: 1.5,
                 background: color,
@@ -800,10 +796,17 @@ function Minimap({ state }: { state: RunState }) {
             />
           )
         })}
-        {/* Player at center */}
+        {/* Player */}
         <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cobalt-bright"
-          style={{ width: 5, height: 5, boxShadow: '0 0 8px rgba(74,130,255,0.9)' }}
+          className="absolute rounded-full bg-cobalt-bright"
+          style={{
+            left: wx2sx(state.player.pos.x),
+            top: wy2sy(state.player.pos.y),
+            width: 5,
+            height: 5,
+            transform: 'translate(-50%, -50%)',
+            boxShadow: '0 0 8px rgba(74,130,255,0.9)',
+          }}
         />
       </div>
     </div>
