@@ -132,6 +132,18 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
   const [subscribe, setSubscribe] = useState<boolean>(false)
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  // When the player set their handle on biokea.ai/mission/games/ via the
+  // HandlePicker, we render a streamlined "Save score as <handle>?"
+  // confirmation instead of the full picker — re-asking them to type
+  // their name in every game defeats the "set once" UX.
+  const [editingName, setEditingName] = useState<boolean>(false)
+  const handleConfirmed = ((): boolean => {
+    try {
+      return localStorage.getItem('biokea:player:handle-confirmed') === '1'
+    } catch {
+      return false
+    }
+  })()
 
   // Lock body scroll while the modal is open.
   useEffect(() => {
@@ -207,6 +219,125 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
     ? "Pick a handle to post this run on the daily leaderboard."
     : "Pick a handle for your save. Long-form games like this one don't post to the daily leaderboard — but you can still subscribe to lab updates below."
   const submitLabel = isGameEnd ? 'Post score →' : 'Start playing →'
+
+  // Streamlined confirmation panel — only at game-end (score-submit
+  // moment), only when the handle was confirmed via HandlePicker, and
+  // only when the player isn't actively re-editing their name.
+  const handleIsValid = HANDLE_REGEX.test(handle)
+  if (isGameEnd && handleConfirmed && handleIsValid && !editingName) {
+    return (
+      <div
+        className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4"
+        style={{
+          background: 'rgba(0,0,0,0.72)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="biokea-prompt-title-confirm"
+      >
+        <div
+          className="w-full max-w-md overflow-hidden rounded-md shadow-2xl"
+          style={{ background: '#fdf8ed', color: '#1a1a1a' }}
+        >
+          <div className="px-5 py-4" style={{ background: '#1a1a1a', color: '#fdf8ed' }}>
+            <div
+              className="font-mono text-[10px] tracking-[0.22em] uppercase"
+              style={{ color: '#c9a84c' }}
+            >
+              BioKEA Daily Leaderboard
+            </div>
+            <h2
+              id="biokea-prompt-title-confirm"
+              className="mt-1 text-xl font-semibold tracking-tight leading-tight"
+            >
+              Save score as <span style={{ color: '#c9a84c' }}>{handle}</span>?
+            </h2>
+            {props.score && (
+              <div className="mt-2 font-mono text-sm" style={{ color: 'rgba(253,248,237,0.7)' }}>
+                {props.score.label ?? 'Score'}:{' '}
+                <span style={{ color: '#c9a84c' }} className="font-bold">
+                  {props.score.value}
+                </span>
+                {props.score.unit ? (
+                  <span style={{ color: 'rgba(253,248,237,0.4)' }}> {props.score.unit}</span>
+                ) : null}
+              </div>
+            )}
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="border rounded-sm p-3" style={{ borderColor: 'rgba(15,23,42,0.10)' }}>
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={subscribe}
+                  onChange={(e) => setSubscribe(e.target.checked)}
+                  className="mt-1"
+                />
+                <span className="text-sm">
+                  <span className="font-semibold">Lab updates by email</span>
+                  <span className="block text-xs mt-0.5" style={{ color: '#6b7280' }}>
+                    Optional. New games + the Golden Sample Hunt only.
+                  </span>
+                </span>
+              </label>
+              {subscribe && (
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@lab.org"
+                  autoComplete="email"
+                  className="mt-2 block w-full rounded-sm border px-3 py-2 text-sm"
+                  style={{ background: '#ffffff', borderColor: 'rgba(15,23,42,0.18)' }}
+                />
+              )}
+            </div>
+            {error && (
+              <div
+                className="text-xs px-3 py-2 rounded-sm"
+                style={{ background: '#fef2f2', color: '#991b1b' }}
+              >
+                {error}
+              </div>
+            )}
+            <div className="flex items-center gap-2 pt-1">
+              {props.onSkip && (
+                <button
+                  type="button"
+                  onClick={skip}
+                  disabled={submitting}
+                  className="px-3 py-2 text-sm rounded-sm"
+                  style={{ color: '#6b7280' }}
+                >
+                  Skip
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setEditingName(true)}
+                className="px-2 py-2 text-xs underline"
+                style={{ color: '#6b7280' }}
+              >
+                Use a different name
+              </button>
+              <button
+                type="button"
+                onClick={() => void commit()}
+                disabled={submitting}
+                autoFocus
+                className="ml-auto px-4 py-2 rounded-sm font-semibold text-sm uppercase tracking-[0.08em] disabled:opacity-50"
+                style={{ background: '#1a1a1a', color: '#fdf8ed' }}
+              >
+                {submitting ? '…' : 'Submit →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
