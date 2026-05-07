@@ -64,7 +64,6 @@ interface GoldenFoundDetail {
   token?: string
   issued_at?: string
   alreadyHeld: boolean
-  sentence: string
 }
 
 // Survive-the-whole-game threshold (RUN_DURATION = 480s in waves.ts).
@@ -105,7 +104,6 @@ export async function tryClaimGoldenSample(
     token: body.token,
     issued_at: body.issued_at,
     alreadyHeld: !body.first_earn,
-    sentence: 'Every Human Now Has Scientific Superpowers',
   }
   window.dispatchEvent(
     new CustomEvent<GoldenFoundDetail>('biokea:golden-found', { detail }),
