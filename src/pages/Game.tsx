@@ -12,6 +12,7 @@ import { RUN_DURATION } from '@/game/waves'
 import { audio } from '@/game/audio'
 import { clearSeed, setSeed, shortSeed } from '@/game/rng'
 import {
+  ACHIEVEMENTS,
   type AchievementDef,
   checkRunAchievements,
   checkRunEndAchievements,
@@ -305,7 +306,13 @@ export function Game({ meta, runConfig, onRunComplete, onMetaUpdate, onExit }: G
   return (
     <div className="fixed inset-0 bg-[#0a1424] overflow-hidden select-none touch-none">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-      <Hud state={state} runConfig={runConfig} onQuit={onExit} />
+      <Hud
+        state={state}
+        runConfig={runConfig}
+        onQuit={onExit}
+        achievementsUnlocked={meta.achievements.length}
+        achievementsTotal={ACHIEVEMENTS.length}
+      />
       <TouchJoystick stateRef={stateRef} disabled={showLevelUp || showWin || showLose} />
       <AchievementToasts toasts={toasts} />
 
@@ -451,10 +458,14 @@ function Hud({
   state,
   runConfig,
   onQuit,
+  achievementsUnlocked,
+  achievementsTotal,
 }: {
   state: RunState
   runConfig: RunConfig
   onQuit: () => void
+  achievementsUnlocked: number
+  achievementsTotal: number
 }) {
   const fmtTime = (s: number) => {
     const m = Math.floor(s / 60)
@@ -575,6 +586,7 @@ function Hud({
 
         {/* Stats + quit */}
         <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <Minimap state={state} />
           <div className="bg-ink/85 backdrop-blur-md rounded-[4px] px-4 py-3 border border-cobalt/25 min-w-[160px]">
             <div className="flex flex-col gap-1.5 font-mono text-[10px]">
               <div className="flex items-center justify-between">
@@ -584,6 +596,12 @@ function Hud({
               <div className="flex items-center justify-between">
                 <span className="text-bone/40 tracking-[0.2em] uppercase text-[9px]">peak</span>
                 <span className="text-bone/80 font-bold tabular-nums">×{state.comboPeak}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-amber-300/60 tracking-[0.2em] uppercase text-[9px]">★ ach</span>
+                <span className="text-amber-300/90 font-bold tabular-nums">
+                  {achievementsUnlocked}<span className="text-amber-300/40">/{achievementsTotal}</span>
+                </span>
               </div>
             </div>
           </div>
@@ -632,10 +650,13 @@ function Hud({
             {state.weapons.map((w) => {
               const m = getMeta(w.id)!
               const cdProgress = w.cooldownMax > 0 ? 1 - w.cooldownLeft / w.cooldownMax : 1
+              const desc = typeof m.description === 'function' ? m.description(w.level) : m.description
               return (
                 <SlotChip
                   key={w.id}
                   short={m.short}
+                  name={m.name}
+                  description={desc}
                   level={w.level}
                   max={m.maxLevel}
                   color={m.color}
@@ -647,10 +668,13 @@ function Hud({
             })}
             {state.passives.map((p) => {
               const m = getMeta(p.id)!
+              const desc = typeof m.description === 'function' ? m.description(p.level) : m.description
               return (
                 <SlotChip
                   key={p.id}
                   short={m.short}
+                  name={m.name}
+                  description={desc}
                   level={p.level}
                   max={m.maxLevel}
                   color={m.color}
@@ -697,6 +721,91 @@ function AchievementToasts({
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function Minimap({ state }: { state: RunState }) {
+  // Radar-style minimap. The arena is effectively infinite (camera follows
+  // the player), so we show a fixed window centered on the player. Player
+  // feedback: "Would be nice to have some idea of the map space, where
+  // the particles are and where you are." Inline-rendered React elements
+  // because the parent only re-renders ~20fps; we typically have <120
+  // enemies on screen which is fine for reconciliation.
+  const SIZE = 124
+  const PAD = 10
+  const inner = SIZE - PAD * 2
+  const half = inner / 2
+  const RADAR_RADIUS = 700 // game-space px window
+  const px = state.player.pos.x
+  const py = state.player.pos.y
+  return (
+    <div
+      className="pointer-events-auto bg-ink/85 backdrop-blur-md rounded-[4px] border border-cobalt/25"
+      style={{ width: SIZE, height: SIZE, padding: PAD }}
+    >
+      <div className="relative" style={{ width: inner, height: inner }}>
+        <div className="absolute inset-0 rounded-full border border-cobalt/20" />
+        <div className="absolute inset-[25%] rounded-full border border-cobalt/12" />
+        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-cobalt/15" />
+        <div className="absolute left-0 right-0 top-1/2 h-px bg-cobalt/15" />
+        {/* Enemies */}
+        {state.enemies.map((e) => {
+          const dx = e.pos.x - px
+          const dy = e.pos.y - py
+          if (Math.abs(dx) > RADAR_RADIUS || Math.abs(dy) > RADAR_RADIUS) return null
+          const sx = half + (dx / RADAR_RADIUS) * half
+          const sy = half + (dy / RADAR_RADIUS) * half
+          const isBoss = e.isBoss
+          const sz = isBoss ? 5 : 2
+          return (
+            <div
+              key={e.id}
+              className="absolute rounded-full"
+              style={{
+                left: sx,
+                top: sy,
+                width: sz,
+                height: sz,
+                background: isBoss ? '#fbbf24' : '#ff5577',
+                transform: 'translate(-50%, -50%)',
+                boxShadow: isBoss ? '0 0 8px rgba(251,191,36,0.85)' : undefined,
+              }}
+            />
+          )
+        })}
+        {/* Pickups (XP) — small subtle dots so the radar shows where
+            kills happened */}
+        {state.pickups.map((p, i) => {
+          if (p.kind !== 'xp' && p.kind !== 'treasure') return null
+          const dx = p.pos.x - px
+          const dy = p.pos.y - py
+          if (Math.abs(dx) > RADAR_RADIUS || Math.abs(dy) > RADAR_RADIUS) return null
+          const sx = half + (dx / RADAR_RADIUS) * half
+          const sy = half + (dy / RADAR_RADIUS) * half
+          const color = p.kind === 'treasure' ? '#fde68a' : '#7ab0ff'
+          return (
+            <div
+              key={`p${i}`}
+              className="absolute rounded-full"
+              style={{
+                left: sx,
+                top: sy,
+                width: 1.5,
+                height: 1.5,
+                background: color,
+                opacity: 0.7,
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
+          )
+        })}
+        {/* Player at center */}
+        <div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cobalt-bright"
+          style={{ width: 5, height: 5, boxShadow: '0 0 8px rgba(74,130,255,0.9)' }}
+        />
+      </div>
     </div>
   )
 }
@@ -818,6 +927,8 @@ function comboColor(combo: number): string {
 
 function SlotChip({
   short,
+  name,
+  description,
   level,
   max,
   color,
@@ -826,6 +937,12 @@ function SlotChip({
   cooldown,
 }: {
   short: string
+  // Long-form labels for the hover tooltip — player feedback was that the
+  // 3-letter shorts are inscrutable ("hard to tell what the symbols
+  // mean"). title attr shows on desktop hover; mobile users can't see
+  // it but the upgrade picker already shows the full names.
+  name?: string
+  description?: string
   level: number
   max: number
   color: string
@@ -836,8 +953,14 @@ function SlotChip({
   const dots = Array.from({ length: max }, (_, i) => i < level)
   // Maxed weapons show solid radial; cooldown shows charging
   const showRing = kind === 'weapon' && !isEvolution
+  const tooltip = name
+    ? description
+      ? `${name} · L${level}/${max} — ${description}`
+      : `${name} · L${level}/${max}`
+    : undefined
   return (
     <div
+      title={tooltip}
       className={`relative flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-[3px] border transition-all`}
       style={{
         background: isEvolution

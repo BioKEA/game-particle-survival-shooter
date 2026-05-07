@@ -76,14 +76,18 @@ export function TitleScreen({
         onboarded: true,
       }
       const s = createInitialState(demoMeta)
-      applyUpgrade(s, 'pcr')
+      // Keep the preview honest about daily mode: only use weapons +
+      // levels a player would reasonably see in the first ~30s of an
+      // actual daily run. Earlier preview applied stirBar + buffer
+      // passives (which produce the spinning orange swirl) and L3 PCR
+      // + L2 centrifuge — visuals that didn't match what daily-mode
+      // players actually see, since daily resets passives + activeSample
+      // to the wildType + pcr-only baseline. Now just PCR L2 + early
+      // centrifuge so what they see in attract mode = what they see
+      // when they play.
       applyUpgrade(s, 'pcr')
       applyUpgrade(s, 'pcr')
       applyUpgrade(s, 'centrifuge')
-      applyUpgrade(s, 'centrifuge')
-      applyUpgrade(s, 'stirBar')
-      applyUpgrade(s, 'stirBar')
-      applyUpgrade(s, 'buffer')
       s.time = 35
       return s
     }
