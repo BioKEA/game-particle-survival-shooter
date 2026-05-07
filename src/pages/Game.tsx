@@ -233,6 +233,14 @@ export function Game({ meta, runConfig, onRunComplete, onMetaUpdate, onExit }: G
           trackEvolution(picked)
         }
       }
+      // P toggles pause. Only meaningful during a running run; we do NOT
+      // pause-from-levelup (that already pauses) and we do NOT pause when
+      // the run has ended (won/lost) so quit still works.
+      if (down && (e.code === 'KeyP' || e.code === 'Pause')) {
+        e.preventDefault()
+        if (state.status === 'running') state.status = 'paused'
+        else if (state.status === 'paused') state.status = 'running'
+      }
       if (down && e.code === 'Escape') {
         e.preventDefault()
         // Bubble to UI quit handler via custom event
@@ -260,6 +268,7 @@ export function Game({ meta, runConfig, onRunComplete, onMetaUpdate, onExit }: G
   const showLevelUp = state.status === 'levelup'
   const showWin = state.status === 'won'
   const showLose = state.status === 'lost'
+  const showPaused = state.status === 'paused'
 
   // When game ends, fire onRunComplete once
   const completedRef = useRef(false)
@@ -309,6 +318,25 @@ export function Game({ meta, runConfig, onRunComplete, onMetaUpdate, onExit }: G
             trackEvolution(id)
           }}
         />
+      )}
+      {showPaused && (
+        <div
+          className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="text-center">
+            <div className="font-mono text-[11px] tracking-[0.3em] uppercase text-amber-400 mb-2">
+              Paused
+            </div>
+            <div className="text-2xl font-semibold text-cream">
+              Press <kbd className="px-2 py-0.5 mx-1 rounded bg-white/15 text-amber-300 border border-white/20">P</kbd> to resume
+            </div>
+            <div className="mt-4 text-xs text-white/60">
+              ESC to quit
+            </div>
+          </div>
+        </div>
       )}
       {(showWin || showLose) && (
         <RunEndOverlay

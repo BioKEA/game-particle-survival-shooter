@@ -163,7 +163,7 @@ export interface Particle {
   size: number
 }
 
-export type RunStatus = 'running' | 'levelup' | 'won' | 'lost'
+export type RunStatus = 'running' | 'levelup' | 'paused' | 'won' | 'lost'
 
 export interface RunState {
   status: RunStatus

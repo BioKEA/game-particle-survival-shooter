@@ -175,10 +175,18 @@ function setupBossArena(state: RunState, bossId: BossId) {
 }
 
 function xpForLevel(level: number): number {
+  // Tier-based curve. Earlier values were linear (14 + (n-3)*7), which had
+  // a known pacing problem: late-game enemy density + magnet pickups push
+  // XP gain so high that level-up popups fire every few seconds, which
+  // turns the last couple minutes into a popup-driven experience instead
+  // of a survival one. The curve below keeps the early ramp accessible
+  // (tutorial-friendly) but slows the cadence in mid- and late-game.
   if (level === 1) return 5
   if (level === 2) return 9
   if (level === 3) return 14
-  return 14 + (level - 3) * 7
+  if (level <= 7) return 14 + (level - 3) * 7 // L4..L7: 21, 28, 35, 42
+  if (level <= 15) return 42 + (level - 7) * 12 // L8..L15: 54..138
+  return 138 + (level - 15) * 22 // L16+: 160, 182, 204, ...
 }
 
 export function update(state: RunState, dtRaw: number) {
