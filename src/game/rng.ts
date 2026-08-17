@@ -33,7 +33,7 @@ export function hashString(s: string): number {
 
 // UTC so every game in the BioKEA suite agrees on which day "today"
 // is. Codon Collider seeds daily mode in UTC and the central
-// /mission/games/leaderboard page reads UTC; using local time here
+// games.biokea.ai/leaderboard page reads UTC; using local time here
 // produced silent score misses for users west of UTC.
 export function todayKey(): string {
   return new Date().toISOString().slice(0, 10)

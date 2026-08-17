@@ -132,7 +132,7 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
   const [subscribe, setSubscribe] = useState<boolean>(false)
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  // When the player set their handle on biokea.ai/mission/games/ via the
+  // When the player set their handle on games.biokea.ai/ via the
   // HandlePicker, we render a streamlined "Save score as <handle>?"
   // confirmation instead of the full picker — re-asking them to type
   // their name in every game defeats the "set once" UX.
@@ -173,7 +173,7 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
     saveCrossGameHandle(h)
 
     // Fire-and-forget subscribe. Same-origin in prod (game served from
-    // biokea.ai/mission/games/<slug>/), absolute URL also fine. We don't
+    // games.biokea.ai/<slug>/), absolute URL also fine. We don't
     // wait — score posting + game flow shouldn't block on Resend.
     if (subscribe && email.trim()) {
       const body = new URLSearchParams({
@@ -477,7 +477,7 @@ export function BiokeaLeaderboardPrompt(props: BiokeaLeaderboardPromptProps) {
           </div>
 
           <p className="text-[10px] leading-snug pt-1" style={{ color: '#9ca3af' }}>
-            By posting you agree to your handle being shown publicly on biokea.ai/mission/games/.
+            By posting you agree to your handle being shown publicly on games.biokea.ai/.
             Email is optional and only used for lab updates — see{' '}
             <a
               href="https://biokea.ai/privacy"

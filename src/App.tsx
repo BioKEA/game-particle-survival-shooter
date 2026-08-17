@@ -23,7 +23,7 @@ async function submitWithToast(args: Parameters<typeof submitDailyScore>[0]) {
     if (res.ok) {
       toast.success('Posted to leaderboard', {
         id,
-        description: 'View it at biokea.ai/mission/games/leaderboard',
+        description: 'View it at games.biokea.ai/leaderboard',
       })
       // Golden Sample 26: pass this run's survived seconds so the
       // claim only fires when THIS run cleared the threshold (480s
